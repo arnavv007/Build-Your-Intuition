@@ -419,18 +419,21 @@ window.doRegister = async function () {
   }
  
   const { data, error } = await window._sb.auth.signUp({
-    email, password: pw,
-    options: { data: { username: name } }
-  });
- 
-  if (error) {
-    const ge = document.getElementById('reg-global-err');
-    ge.style.display = 'block'; ge.textContent = error.message;
-    return;
-  }
- 
-  closeRegister();
-  showToast('Account created! Welcome, ' + name + ' 🎉');
+  email,
+  password: pw,
+  options: { data: { username: name } }
+});
+
+if (error) {
+  document.getElementById('reg-global-err').textContent = error.message;
+  return;
+}
+
+if (!data.session) {
+  showToast("Check your email to confirm your account 📧");
+} else {
+  showToast("Account created! Welcome 🎉");
+}
 };
  
  
