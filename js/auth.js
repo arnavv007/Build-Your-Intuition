@@ -385,19 +385,47 @@ if (!data.session) {
  
 // ── LOG IN ─────────────────────────────────────────────────────
 window.doLogin = async function () {
-  const email = document.getElementById('inp-email').value.trim();
-  const pw    = document.getElementById('inp-password').value;
-  let errors  = false;
- 
+
+  const email =
+    document.getElementById('inp-email').value.trim();
+
+  const pw =
+    document.getElementById('inp-password').value;
+
+  let errors = false;
+
   ['email','password'].forEach(f => {
     document.getElementById('err-' + f).textContent = '';
-    document.getElementById('inp-' + f).classList.remove('state-err','state-ok');
+    document.getElementById('inp-' + f)
+      .classList.remove('state-err','state-ok');
   });
-  setGlobalMsg('','');
- 
-  if (!email) { markErr('email','Email is required.');     errors = true; }
-  if (!pw)    { markErr('password','Password is required.'); errors = true; }
+
+  setGlobalMsg('', '');
+
+  if (!email) {
+    markErr('email','Email is required.');
+    errors = true;
+  }
+
+  if (!pw) {
+    markErr('password','Password is required.');
+    errors = true;
+  }
+
+  if (errors) {
+    applyMood('sad');
+    shakeCard();
+    return;
+  }
+
+  const { data, error } =
+    await window._sb.auth.signInWithPassword({
+      email,
+      password: pw
+    });
+
   if (error) {
+
     console.error(error);
 
     applyMood('sad');
@@ -410,24 +438,23 @@ window.doLogin = async function () {
     shakeCard();
 
     return;
-}
- 
-  const { data, error } = await window._sb.auth.signInWithPassword({ email, password: pw });
- 
-  if (error) {
-    applyMood('sad');
-    markErr('password','Incorrect email or password.');
-    shakeCard();
-    return;
   }
- 
-  // SUCCESS — onAuthStateChange handles currentUser + nav update
+
   applyMood('happy');
-  document.getElementById('inp-email').classList.add('state-ok');
-  document.getElementById('inp-password').classList.add('state-ok');
+
+  document.getElementById('inp-email')
+    .classList.add('state-ok');
+
+  document.getElementById('inp-password')
+    .classList.add('state-ok');
+
   setGlobalMsg('Welcome back! 🎉','ok');
+
   const btn = document.getElementById('submit-btn');
-  btn.textContent = '✓ Logged in!'; btn.disabled = true;
+
+  btn.textContent = '✓ Logged in!';
+  btn.disabled = true;
+
   setTimeout(closeLogin, 1800);
 };
  
