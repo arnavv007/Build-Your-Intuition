@@ -197,6 +197,7 @@ function launchSparkles() {
 /* ── MODAL ── */
 window.openLogin = function() {
   const ov = document.getElementById('login-overlay');
+  ov.style.display = 'flex';   // FIX: ensure overlay is visible
   ov.classList.add('open');
   // Reset form
   document.getElementById('inp-email').value = '';
@@ -214,7 +215,9 @@ window.openLogin = function() {
 };
  
 window.closeLogin = function() {
-  document.getElementById('login-overlay').classList.remove('open');
+  const ov = document.getElementById('login-overlay');
+  ov.style.display = 'none';   // FIX: actually hide the overlay
+  ov.classList.remove('open');
   applyMood('idle');
 };
  
