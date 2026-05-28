@@ -369,6 +369,7 @@ window.applyMood     = applyMood;
 ================================================================ */
  
 // ── CURRENT SESSION ────────────────────────────────────────────
+const FOUNDER_EMAIL = "yourfounderemail@example.com";
 let currentUser = null;   // { id, email, name, isFounder }
  
 // ── LISTEN FOR AUTH STATE CHANGES ─────────────────────────────
