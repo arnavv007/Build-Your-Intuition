@@ -306,6 +306,313 @@ window.applyMood     = applyMood;
 })();
  
 /* ================================================================
+   auth.js — Login creature, register, session, founder panel
+================================================================ */
+ 
+(function() {
+ 
+/* ── STATE ── */
+let mood = 'idle';       // idle | curious | typing | peek | happy | sad
+let activeField = null;  // 'email' | 'password' | null
+let pwVisible = false;
+ 
+/* ── EYE TRACKING ── */
+const EYE_RADIUS = 9; // max pupil travel in SVG units
+ 
+function getSVGCoords(clientX, clientY) {
+  const svg = document.getElementById('creature-svg');
+  const rect = svg.getBoundingClientRect();
+  const scaleX = 220 / rect.width;
+  const scaleY = 200 / rect.height;
+  return {
+    x: (clientX - rect.left) * scaleX,
+    y: (clientY - rect.top)  * scaleY
+  };
+}
+ 
+function movePupils(cx, cy) {
+  movePupil('pupil-l-group', 86, 106, cx, cy);
+  movePupil('pupil-r-group', 134, 106, cx, cy);
+}
+ 
+function movePupil(groupId, eyeCx, eyeCy, targetX, targetY) {
+  const dx = targetX - eyeCx;
+  const dy = targetY - eyeCy;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  const capped = Math.min(dist, EYE_RADIUS);
+  const angle = Math.atan2(dy, dx);
+  const tx = Math.cos(angle) * capped;
+  const ty = Math.sin(angle) * capped;
+  document.getElementById(groupId).setAttribute('transform', `translate(${tx.toFixed(2)},${ty.toFixed(2)})`);
+}
+ 
+function centerPupils() {
+  document.getElementById('pupil-l-group').setAttribute('transform', 'translate(0,0)');
+  document.getElementById('pupil-r-group').setAttribute('transform', 'translate(0,0)');
+}
+ 
+document.addEventListener('mousemove', function(e) {
+  if(mood === 'peek' || mood === 'happy') return;
+  if(!document.getElementById('login-overlay').classList.contains('open')) return;
+  const pos = getSVGCoords(e.clientX, e.clientY);
+  movePupils(pos.x, pos.y);
+});
+ 
+/* ── BROW HELPERS ── */
+function setBrows(type) {
+  const bl = document.getElementById('brow-l');
+  const br = document.getElementById('brow-r');
+  if(type === 'normal') {
+    bl.setAttribute('d','M64,88 Q84,80 104,88');
+    br.setAttribute('d','M116,88 Q136,80 156,88');
+  } else if(type === 'raised') {
+    bl.setAttribute('d','M64,82 Q84,72 104,82');
+    br.setAttribute('d','M116,82 Q136,72 156,82');
+  } else if(type === 'worried') {
+    bl.setAttribute('d','M67,80 Q86,88 105,82');
+    br.setAttribute('d','M115,82 Q134,88 153,80');
+  } else if(type === 'angry') {
+    bl.setAttribute('d','M67,86 Q86,96 105,90');
+    br.setAttribute('d','M115,90 Q134,96 153,86');
+  } else if(type === 'happy') {
+    bl.setAttribute('d','M64,84 Q84,76 104,84');
+    br.setAttribute('d','M116,84 Q136,76 156,84');
+  }
+}
+ 
+function setMouth(type) {
+  const m = document.getElementById('mouth');
+  const t = document.getElementById('teeth');
+  if(type === 'neutral') {
+    m.setAttribute('d','M95,146 Q110,151 125,146');
+    t.setAttribute('opacity','0');
+  } else if(type === 'smile-small') {
+    m.setAttribute('d','M93,145 Q110,157 127,145');
+    t.setAttribute('opacity','0');
+  } else if(type === 'smile-big') {
+    m.setAttribute('d','M88,143 Q110,162 132,143');
+    t.setAttribute('opacity','1');
+  } else if(type === 'ooh') {
+    m.setAttribute('d','M100,146 Q110,155 120,146');
+    t.setAttribute('opacity','0');
+  } else if(type === 'sad') {
+    m.setAttribute('d','M93,153 Q110,143 127,153');
+    t.setAttribute('opacity','0');
+  } else if(type === 'flat') {
+    m.setAttribute('d','M98,148 Q110,150 122,148');
+    t.setAttribute('opacity','0');
+  }
+}
+ 
+function setLids(ry) {
+  document.getElementById('lid-l').setAttribute('ry', ry);
+  document.getElementById('lid-r').setAttribute('ry', ry);
+  document.getElementById('lid-l').setAttribute('cy', 106 + ry*0.5);
+  document.getElementById('lid-r').setAttribute('cy', 106 + ry*0.5);
+}
+ 
+function setBlush(opacity) {
+  document.getElementById('blush-l').setAttribute('opacity', opacity);
+  document.getElementById('blush-r').setAttribute('opacity', opacity);
+}
+ 
+/* ── HANDS ── */
+function showHands(show) {
+  const hl = document.getElementById('hand-l');
+  const hr = document.getElementById('hand-r');
+  // inner pads — visible when idle (palm facing us), hidden when covering (back of paw)
+  const padL = document.getElementById('pad-l');
+  const padR = document.getElementById('pad-r');
+  if(show) {
+    hl.style.transform = 'translate(24px, -52px)';
+    hr.style.transform = 'translate(-24px, -52px)';
+    if(padL) padL.setAttribute('opacity','0');
+    if(padR) padR.setAttribute('opacity','0');
+  } else {
+    hl.style.transform = 'translate(0px, 0px)';
+    hr.style.transform = 'translate(0px, 0px)';
+    if(padL) padL.setAttribute('opacity','0.6');
+    if(padR) padR.setAttribute('opacity','0.6');
+  }
+}
+ 
+/* ── MOODS ── */
+function applyMood(m) {
+  mood = m;
+  // reset tears
+  document.getElementById('tear-l').setAttribute('opacity','0');
+  document.getElementById('tear-r').setAttribute('opacity','0');
+  if(m === 'idle') {
+    setBrows('normal'); setMouth('neutral'); setLids(0); setBlush(0);
+    showHands(false); centerPupils();
+  } else if(m === 'curious') {
+    setBrows('raised'); setMouth('ooh'); setLids(0); setBlush(0);
+    showHands(false);
+  } else if(m === 'typing') {
+    setBrows('normal'); setMouth('flat'); setLids(0); setBlush(0);
+    showHands(false);
+  } else if(m === 'peek') {
+    setBrows('worried'); setMouth('flat'); setLids(0); setBlush(0);
+    showHands(true); centerPupils();
+    // peek pupils down after hands cover
+    setTimeout(()=>{
+      movePupils(110, 140);
+    }, 350);
+  } else if(m === 'sad') {
+    setBrows('worried'); setMouth('sad'); setLids(0); setBlush(0);
+    showHands(false);
+    // show tears
+    document.getElementById('tear-l').setAttribute('opacity','0.9');
+    document.getElementById('tear-r').setAttribute('opacity','0.9');
+  } else if(m === 'happy') {
+    setBrows('happy'); setMouth('smile-big'); setLids(0); setBlush(0.85);
+    showHands(false);
+    setTimeout(()=>{
+      movePupils(110, 55);
+      setLids(0);
+    }, 100);
+    launchSparkles();
+  }
+}
+ 
+/* ── SPARKLES ── */
+function launchSparkles() {
+  const container = document.getElementById('sparkles');
+  container.innerHTML = '';
+  const colors = ['#00e5c8','#f0b429','#ff6bdc','#7c5abf','#ffffff'];
+  for(let i = 0; i < 22; i++) {
+    const s = document.createElement('div');
+    s.className = 'spark';
+    const angle = (Math.random() * Math.PI * 2);
+    const dist = 50 + Math.random() * 80;
+    s.style.cssText = `
+      left:${80 + Math.random()*60}px;
+      top:${60 + Math.random()*60}px;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      width:${4+Math.random()*6}px;
+      height:${4+Math.random()*6}px;
+      --dx:${(Math.cos(angle)*dist).toFixed(0)}px;
+      --dy:${(Math.sin(angle)*dist).toFixed(0)}px;
+      animation-delay:${(Math.random()*0.25).toFixed(2)}s;
+      animation-duration:${(.6+Math.random()*.5).toFixed(2)}s;
+    `;
+    container.appendChild(s);
+  }
+  setTimeout(()=>{ container.innerHTML=''; }, 1200);
+}
+ 
+/* ── MODAL ── */
+window.openLogin = function() {
+  const ov = document.getElementById('login-overlay');
+  ov.style.display = 'flex';   // FIX: ensure overlay is visible
+  ov.classList.add('open');
+  // Reset form
+  document.getElementById('inp-email').value = '';
+  document.getElementById('inp-password').value = '';
+  document.getElementById('inp-email').className = '';
+  document.getElementById('inp-password').className = '';
+  document.getElementById('err-email').textContent = '';
+  document.getElementById('err-password').textContent = '';
+  setGlobalMsg('','');
+  document.getElementById('submit-btn').disabled = false;
+  document.getElementById('submit-btn').textContent = 'Log In →';
+  if(pwVisible) togglePw();
+  applyMood('idle');
+  setTimeout(()=> document.getElementById('inp-email').focus(), 200);
+};
+ 
+window.closeLogin = function() {
+  const ov = document.getElementById('login-overlay');
+  ov.style.display = 'none';   // FIX: actually hide the overlay
+  ov.classList.remove('open');
+  applyMood('idle');
+};
+ 
+// Click backdrop to close
+window.addEventListener('DOMContentLoaded', function() {
+  const ov = document.getElementById('login-overlay');
+  if(ov) ov.addEventListener('click', function(e){ if(e.target===this) closeLogin(); });
+});
+ 
+/* ── FIELD HANDLERS ── */
+window.handleFocus = function(field) {
+  activeField = field;
+  if(field === 'password') {
+    applyMood('peek');
+  } else {
+    if(mood !== 'sad') applyMood('curious');
+  }
+};
+ 
+window.handleBlur = function() {
+  activeField = null;
+  if(mood === 'curious' || mood === 'peek' || mood === 'typing') applyMood('idle');
+};
+ 
+window.handleInput = function(el, field) {
+  // Clear errors as user types
+  document.getElementById('err-' + field).textContent = '';
+  el.classList.remove('state-err');
+  setGlobalMsg('','');
+  if(mood === 'sad') applyMood(field === 'password' ? 'peek' : 'typing');
+  else if(field === 'password') applyMood('peek');
+  else applyMood('typing');
+};
+ 
+/* ── PASSWORD TOGGLE ── */
+window.togglePw = function() {
+  const inp = document.getElementById('inp-password');
+  const btn = document.getElementById('pw-toggle');
+  pwVisible = !pwVisible;
+  inp.type = pwVisible ? 'text' : 'password';
+  btn.textContent = pwVisible ? '🙈' : '👁';
+  if(pwVisible && activeField === 'password') applyMood('curious');
+  else if(!pwVisible && activeField === 'password') applyMood('peek');
+};
+ 
+/* ── GLOBAL MSG ── */
+function setGlobalMsg(text, type) {
+  const el = document.getElementById('global-msg');
+  el.textContent = text;
+  el.className = type ? 'show-' + type : '';
+}
+ 
+ 
+function markErr(field, msg) {
+  document.getElementById('err-'+field).textContent = msg;
+  document.getElementById('inp-'+field).classList.add('state-err');
+}
+ 
+function shakeCard() {
+  const card = document.getElementById('login-card');
+  card.classList.remove('do-shake');
+  void card.offsetWidth;
+  card.classList.add('do-shake');
+  card.addEventListener('animationend', ()=> card.classList.remove('do-shake'), {once:true});
+}
+ 
+/* ── KEYBOARD ── */
+document.addEventListener('keydown', function(e) {
+  if(!document.getElementById('login-overlay').classList.contains('open')) return;
+  if(e.key === 'Enter')  doLogin();
+  if(e.key === 'Escape') closeLogin();
+});
+ 
+// Wire up the Log In button — deferred so DOM is ready
+window.addEventListener('DOMContentLoaded', function() {
+  const btn = document.querySelector('.btn-ghost');
+  if(btn) btn.addEventListener('click', openLogin);
+});
+ 
+// Expose creature functions globally so auth system can use them
+window.setGlobalMsg  = setGlobalMsg;
+window.markErr       = markErr;
+window.shakeCard     = shakeCard;
+window.applyMood     = applyMood;
+ 
+})();
+ 
+/* ================================================================
    auth.js — Supabase Auth + Posts system
    Replaces all localStorage-based auth
 ================================================================ */
@@ -773,3 +1080,4 @@ window.addEventListener('DOMContentLoaded', function () {
   const hn = document.getElementById('nav-home');
   if (hn) hn.classList.add('active-link');
 });
+
