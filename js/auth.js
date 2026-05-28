@@ -270,64 +270,6 @@ function setGlobalMsg(text, type) {
   el.className = type ? 'show-' + type : '';
 }
  
-/* ── VALIDATION & LOGIN ── */
-const KNOWN_EMAILS = ['taken@example.com'];
- 
-window.doLogin = function() {
-  const email = document.getElementById('inp-email').value.trim();
-  const pw    = document.getElementById('inp-password').value;
-  let errors = false;
- 
-  // Clear previous
-  ['email','password'].forEach(f => {
-    document.getElementById('err-'+f).textContent = '';
-    document.getElementById('inp-'+f).classList.remove('state-err','state-ok');
-  });
-  setGlobalMsg('','');
- 
-  // Email
-  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if(!email) {
-    markErr('email', 'Email is required.');
-    errors = true;
-  } else if(!emailRe.test(email)) {
-    markErr('email', 'That does not look like a valid email.');
-    errors = true;
-  } else if(KNOWN_EMAILS.includes(email.toLowerCase())) {
-    markErr('email', 'No account found with this email.');
-    errors = true;
-  }
- 
-  // Password
-  const weakPws = ['password','12345678','11111111','qwerty123','00000000','iloveyou'];
-  if(!pw) {
-    markErr('password', 'Password is required.');
-    errors = true;
-  } else if(pw.length < 8) {
-    markErr('password', 'Too short — at least 8 characters.');
-    errors = true;
-  } else if(weakPws.includes(pw.toLowerCase())) {
-    markErr('password', 'Too simple. Try something stronger!');
-    errors = true;
-  }
- 
-  if(errors) {
-    applyMood('sad');
-    setGlobalMsg('Hmm, something is not right up there.','err');
-    shakeCard();
-    return;
-  }
- 
-  // SUCCESS
-  applyMood('happy');
-  document.getElementById('inp-email').classList.add('state-ok');
-  document.getElementById('inp-password').classList.add('state-ok');
-  setGlobalMsg('You are in! Welcome back.','ok');
-  const btn = document.getElementById('submit-btn');
-  btn.textContent = '✓ Logged in!';
-  btn.disabled = true;
-  setTimeout(closeLogin, 2200);
-};
  
 function markErr(field, msg) {
   document.getElementById('err-'+field).textContent = msg;
@@ -455,7 +397,20 @@ window.doLogin = async function () {
  
   if (!email) { markErr('email','Email is required.');     errors = true; }
   if (!pw)    { markErr('password','Password is required.'); errors = true; }
-  if (errors) { applyMood('sad'); setGlobalMsg('Check the fields above.','err'); shakeCard(); return; }
+  if (error) {
+    console.error(error);
+
+    applyMood('sad');
+
+    markErr(
+      'password',
+      error.message || 'Login failed.'
+    );
+
+    shakeCard();
+
+    return;
+}
  
   const { data, error } = await window._sb.auth.signInWithPassword({ email, password: pw });
  
